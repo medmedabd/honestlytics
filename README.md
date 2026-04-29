@@ -83,15 +83,24 @@ docker exec -it honestlytics-postgres psql -U postgres -d honestlytics -c "SELEC
 
 ```
 honestlytics/
-  ├── api/                  # Ingestion API — receives and queues events
+  ├── api/                        # Ingestion API — receives and queues events
   │   ├── src/
+  │   │   ├── config/
+  │   │   ├── controller/
+  │   │   ├── middleware/
+  │   │   └── routes/
   │   ├── package.json
   │   └── Dockerfile
-  ├── consumer/             # Queue consumer — deduplicates and stores events
+  ├── consumer/                   # Queue consumer — deduplicates and stores events
   │   ├── src/
+  │   │   ├── config/
+  │   │   ├── services/
+  │   │   ├── workers/
+  │   │   └── types/
   │   ├── package.json
   │   └── Dockerfile
-  ├── sdk/                  # Lightweight browser SDK
+  ├── db/                         # Database initialization
+  ├── sdk/                        # Lightweight browser SDK
   │   ├── src/
   │   └── package.json
   ├── docker-compose.yml
@@ -128,10 +137,10 @@ Full architecture decisions and rationale → [ARCHITECTURE.md](./ARCHITECTURE.m
 ## Roadmap
 
 - [x] Architecture design
-- [ ] POST /event endpoint
-- [ ] RabbitMQ consumer
+- [x] POST /event endpoint
+- [x] RabbitMQ consumer
+- [x] PostgreSQL storage
 - [ ] Redis deduplication
-- [ ] PostgreSQL storage
 - [ ] SDK v0.1.0
 - [ ] Aggregations engine
 - [ ] Admin dashboard
