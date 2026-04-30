@@ -1,4 +1,5 @@
 export interface EventExchange {
+  server_timestamp: string | null;
   event_id: string;
   event_name: string;
   distinct_id: string | null;

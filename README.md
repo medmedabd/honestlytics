@@ -1,6 +1,7 @@
 # Honestlytics
 
 > Open source, self-hosted user behavior tracking system — built from scratch to understand how platforms like Mixpanel actually work under the hood.
+
 ---
 
 ## Why Honestlytics?
@@ -16,19 +17,20 @@ Most analytics tools are black boxes. They track everything silently, sell your 
 
 ## Stack
 
-| Layer | Technology |
-|-------|------------|
-| API | Node.js |
-| Queue | RabbitMQ |
-| Database | PostgreSQL |
-| Cache / Dedup | Redis |
-| Infra | Docker |
+| Layer         | Technology |
+| ------------- | ---------- |
+| API           | Node.js    |
+| Queue         | RabbitMQ   |
+| Database      | PostgreSQL |
+| Cache / Dedup | Redis      |
+| Infra         | Docker     |
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
+
 - Docker
 - Docker Compose
 
@@ -48,25 +50,23 @@ That's it. Everything runs in one command.
 Send a test event:
 
 ```bash
-curl -X POST http://localhost:3000/event \
-  -H "Content-Type: application/json" \
-  -d '{
-    "event_name": "test_event",
+curl -X POST http://localhost:3000/event   -H "Content-Type: application/json"   -d '{
+    "event_name": "button_clicked",
     "distinct_id": "abc-123",
-    "session_id": "sess-456",
-    "client_timestamp": "2026-04-30T05:00:00Z",
+    "session_id": null,
+    "client_timestamp": "2026-04-30T05:00:00.000Z",
     "page": "/home",
     "html_element": "button",
     "sdk_version": "0.1.0",
     "user_id": null,
     "device_properties": {
       "browser": "Chrome",
-      "os": "Linux",
+      "os": "Windows",
       "screen": "1920x1080",
       "timezone": "Africa/Tunis"
     },
     "properties": {}
-  }'
+  }' 
 ```
 
 Expected response: `202 Accepted`
@@ -89,6 +89,7 @@ honestlytics/
   │   │   ├── controller/
   │   │   ├── middleware/
   │   │   └── routes/
+  │   │   └── types/
   │   ├── package.json
   │   └── Dockerfile
   ├── consumer/                   # Queue consumer — deduplicates and stores events
@@ -96,7 +97,9 @@ honestlytics/
   │   │   ├── config/
   │   │   ├── services/
   │   │   ├── workers/
-  │   │   └── types/
+  │   │   └── validators/
+  |   │   └── repositories/
+  |   │   └── utils/
   │   ├── package.json
   │   └── Dockerfile
   ├── db/                         # Database initialization
@@ -105,6 +108,7 @@ honestlytics/
   │   └── package.json
   ├── docker-compose.yml
   ├── .env.example
+  └── ARCHITECTURE.md
   └── README.md
 ```
 
@@ -140,7 +144,7 @@ Full architecture decisions and rationale → [ARCHITECTURE.md](./ARCHITECTURE.m
 - [x] POST /event endpoint
 - [x] RabbitMQ consumer
 - [x] PostgreSQL storage
-- [ ] Redis deduplication
+- [x] Redis deduplication
 - [ ] SDK v0.1.0
 - [ ] Aggregations engine
 - [ ] Admin dashboard

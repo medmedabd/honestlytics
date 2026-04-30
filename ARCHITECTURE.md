@@ -248,7 +248,7 @@ CREATE TABLE user_questions (
   "user_id": "real-db-id or null",
   "distinct_id": "anonymous-uuid",
   "session_id": "uuid",
-  "timestamp": "2026-04-27T07:00:00Z",
+  "client_timestamp": "2026-04-30T05:00:00.000Z",
   "page": "/dashboard/settings",
   "html_element": "button",
   "device_properties": {
