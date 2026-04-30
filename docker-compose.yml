@@ -10,7 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      
+
   rabbitmq:
     image: rabbitmq:3-management
     container_name: honestlytics-rabbitmq
@@ -52,6 +52,13 @@ services:
       - postgres
       - rabbitmq
       - redis
-
+  
+  adminer:
+    image: adminer
+    container_name: honestlytics-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
 volumes:
   postgres_data:
