@@ -4,10 +4,11 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "esbuild src/index.ts --bundle --outfile=dist/honestlytics.js --global-name=Honestlytics --platform=browser",
     "dev": "tsc --watch"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
     "typescript": "^5.9.3"
   }
 }

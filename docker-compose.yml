@@ -55,8 +55,8 @@ services:
       - rabbitmq
       - redis
     volumes:
-    - ./consumer/src:/app/src
-  
+      - ./consumer/src:/app/src
+
   adminer:
     image: adminer
     container_name: honestlytics-adminer
@@ -64,5 +64,14 @@ services:
       - "8080:8080"
     depends_on:
       - postgres
+  sdk-test:
+    image: nginx:alpine
+    container_name: honestlytics-sdk-test
+    ports:
+      - "8081:80"
+    volumes:
+      - ./packages/sdk/test:/usr/share/nginx/html
+      - ./packages/sdk/dist:/usr/share/nginx/html/dist
+
 volumes:
   postgres_data:

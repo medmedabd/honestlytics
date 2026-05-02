@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Honestlytics SDK Test</title>
+  </head>
+  <body>
+    <h1>SDK Test Page</h1>
+    <button id="btn">Track Event</button>
+
+    <script src="../dist/honestlytics.js"></script>
+    <script>
+      const tracker = new Honestlytics.Honestlytics({
+        url: "http://localhost:3000",
+        write_key: "test-key",
+        debug: true,
+      });
+
+      document.getElementById("btn").addEventListener("click", () => {
+        tracker.track({
+          event_name: "button_clicked",
+          page: "/test",
+          html_element: "button",
+        });
+      });
+    </script>
+  </body>
+</html>

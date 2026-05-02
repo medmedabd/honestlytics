@@ -1,4 +1,5 @@
 import { EventPayload, HonestlyticsConfig } from './types';
+import { getDeviceProperties } from './device';
 
 export class Honestlytics {
   private url: string;
@@ -17,6 +18,8 @@ export class Honestlytics {
 
   private isFlushing = false;
 
+  private distinct_id: string;
+
   constructor(config: HonestlyticsConfig) {
     this.url = config.url.replace(/\/$/, '');
     this.write_key = config.write_key;
@@ -26,8 +29,9 @@ export class Honestlytics {
     this.maxQueueSize = config.maxQueueSize ?? 1000;
     this.retry = config.retry ?? 3;
     this.debug = config.debug ?? false;
+    this.distinct_id = this.getOrCreateDistinctId();
 
-    this.fetchFn = config.fetch ?? globalThis.fetch;
+    this.fetchFn = (config.fetch ?? globalThis.fetch).bind(globalThis);
 
     if (!this.fetchFn) {
       throw new Error('fetch is not available');
@@ -44,7 +48,11 @@ export class Honestlytics {
   track(event: EventPayload): void {
     const payload: EventPayload = {
       ...event,
-      timestamp: event.timestamp ?? new Date().toISOString(),
+      distinct_id: event.distinct_id ?? this.distinct_id,
+      sdk_version: '0.1.0',
+      client_timestamp: event.client_timestamp ?? new Date().toISOString(),
+      device_properties: event.device_properties ?? getDeviceProperties(),
+      properties: event.properties ?? {}
     };
 
     // backpressure control
@@ -90,13 +98,13 @@ export class Honestlytics {
 
     while (attempt < this.retry) {
       try {
-        const res = await this.fetchFn(`${this.url}/batch`, {
+        const res = await this.fetchFn(`${this.url}/event/batch`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'x-write-key': this.write_key,
           },
-          body: JSON.stringify({ events: batch }),
+          body: JSON.stringify(batch),
         });
 
         if (res.ok) return;
@@ -159,4 +167,15 @@ export class Honestlytics {
       navigator.sendBeacon(`${this.url}/batch`, payload);
     });
   }
+
+  private getOrCreateDistinctId(): string {
+    if (typeof localStorage === 'undefined') return crypto.randomUUID();
+    const existing = localStorage.getItem('hnly_distinct_id');
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    localStorage.setItem('hnly_distinct_id', id);
+    return id;
+  }
+
 }
+
