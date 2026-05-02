@@ -1,27 +1,43 @@
 <!doctype html>
 <html>
   <head>
-    <title>Honestlytics SDK Test</title>
+    <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <h1>SDK Test Page</h1>
-    <button id="btn">Track Event</button>
-
-    <script src="../dist/honestlytics.js"></script>
-    <script>
-      const tracker = new Honestlytics.Honestlytics({
-        url: "http://localhost:3000",
-        write_key: "test-key",
-        debug: true,
-      });
-
-      document.getElementById("btn").addEventListener("click", () => {
-        tracker.track({
-          event_name: "button_clicked",
-          page: "/test",
-          html_element: "button",
-        });
-      });
-    </script>
+    <h1>Honestlytics — sdk test</h1>
+    <div class="buttons">
+      <button class="btn primary" onclick="trackSingle()">
+        track single event
+      </button>
+      <button class="btn" onclick="trackBatch()">track batch (5 events)</button>
+      <button class="btn" onclick="trackMaxBatch()">
+        track max batch (20 events)
+      </button>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">queue size</div>
+        <div class="stat-value" id="stat-queue">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">sent total</div>
+        <div class="stat-value" id="stat-sent">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">retries</div>
+        <div class="stat-value" id="stat-retry">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">failed</div>
+        <div class="stat-value" id="stat-failed">0</div>
+      </div>
+    </div>
+    <div class="console-header">
+      <span class="console-title">event log</span>
+      <button class="clear-btn" onclick="clearLogs()">clear</button>
+    </div>
+    <div class="console" id="console"></div>
+    <script src="/dist/honestlytics.js"></script>
+    <script src="./app.js"></script>
   </body>
 </html>

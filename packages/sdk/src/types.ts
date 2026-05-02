@@ -22,4 +22,7 @@ export interface HonestlyticsConfig {
 
   debug?: boolean;
   fetch?: typeof fetch;
+  onRetry?: (attempt: number) => void;
+  onFailed?: (error: Error) => void;
+  onSuccess?: (count: number) => void;
 }

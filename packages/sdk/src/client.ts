@@ -19,6 +19,9 @@ export class Honestlytics {
   private isFlushing = false;
 
   private distinct_id: string;
+  onRetry?: (attempt: number) => void;
+  onFailed?: (error: Error) => void;
+  onSuccess?: (count: number) => void;
 
   constructor(config: HonestlyticsConfig) {
     this.url = config.url.replace(/\/$/, '');
@@ -30,7 +33,9 @@ export class Honestlytics {
     this.retry = config.retry ?? 3;
     this.debug = config.debug ?? false;
     this.distinct_id = this.getOrCreateDistinctId();
-
+    this.onRetry = config.onRetry;
+    this.onFailed = config.onFailed;
+    this.onSuccess = config.onSuccess;
     this.fetchFn = (config.fetch ?? globalThis.fetch).bind(globalThis);
 
     if (!this.fetchFn) {
@@ -81,13 +86,17 @@ export class Honestlytics {
 
     try {
       await this.sendWithRetry(batch);
+
     } catch (err) {
-      // restore on failure
       this.queue.unshift(...batch);
 
       if (this.debug) {
         console.error('[Honestlytics] flush failed:', err);
       }
+
+      this.onFailed?.(err as Error);
+
+      throw err;
     } finally {
       this.isFlushing = false;
     }
@@ -95,7 +104,6 @@ export class Honestlytics {
 
   private async sendWithRetry(batch: EventPayload[]) {
     let attempt = 0;
-
     while (attempt < this.retry) {
       try {
         const res = await this.fetchFn(`${this.url}/event/batch`, {
@@ -107,26 +115,35 @@ export class Honestlytics {
           body: JSON.stringify(batch),
         });
 
-        if (res.ok) return;
+        if (res.ok) {
+          this.onSuccess?.(batch.length);
+          return;
+        }
 
         if (res.status >= 400 && res.status < 500) {
           if (this.debug) {
             console.error('[Honestlytics] bad request:', res.status);
           }
-          return;
+
+          throw new Error(`client error ${res.status}`);
         }
 
         await this.backoff(attempt);
         attempt++;
+
       } catch (err) {
+        this.onRetry?.(attempt + 1);
+
         await this.backoff(attempt);
         attempt++;
 
-        if (attempt >= this.retry && this.debug) {
-          console.error('[Honestlytics] retry failed:', err);
+        if (attempt >= this.retry) {
+          throw err;
         }
       }
     }
+
+    throw new Error('all retries failed');
   }
 
   private backoff(attempt: number) {
@@ -156,16 +173,29 @@ export class Honestlytics {
   private setupUnloadHook() {
     if (typeof window === 'undefined') return;
 
-    window.addEventListener('beforeunload', () => {
+    const flushWithBeacon = () => {
       if (this.queue.length === 0) return;
 
       const payload = new Blob(
-        [JSON.stringify({ events: this.queue })],
+        [JSON.stringify(this.queue)],
         { type: 'application/json' }
       );
 
-      navigator.sendBeacon(`${this.url}/batch`, payload);
+      navigator.sendBeacon(
+        `${this.url}/event/batch`,
+        payload
+      );
+    };
+
+    window.addEventListener('beforeunload', flushWithBeacon);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        flushWithBeacon();
+      }
     });
+
+    this.queue = [];
   }
 
   private getOrCreateDistinctId(): string {
@@ -175,6 +205,10 @@ export class Honestlytics {
     const id = crypto.randomUUID();
     localStorage.setItem('hnly_distinct_id', id);
     return id;
+  }
+
+  get queueSize(): number {
+    return this.queue.length;
   }
 
 }

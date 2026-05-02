@@ -14,6 +14,7 @@ app.use(cors({
     origin: 'http://localhost:8081'
 }));
 
+app.use(express.text());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/event', eventRoutes);
