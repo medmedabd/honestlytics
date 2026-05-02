@@ -23,7 +23,7 @@ export const createEvent = async (eventContent: EventExchange): Promise<void> =>
             eventContent.distinct_id ?? 'anonymous',
             eventContent.session_id ?? null,
             eventContent.client_timestamp,  // from SDK
-            new Date(),                      // server generates this
+            eventContent.server_timestamp,
             eventContent.page ?? null,
             eventContent.html_element ?? null,
             eventContent.sdk_version ?? null,

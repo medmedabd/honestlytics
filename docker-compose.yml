@@ -40,6 +40,8 @@ services:
       - postgres
       - rabbitmq
       - redis
+    volumes:
+      - ./api/src:/app/src
 
   consumer:
     build: ./consumer
@@ -52,6 +54,8 @@ services:
       - postgres
       - rabbitmq
       - redis
+    volumes:
+    - ./consumer/src:/app/src
   
   adminer:
     image: adminer

@@ -12,6 +12,7 @@ export const EventSchema = z.object({
   user_id: z.string().nullable(),
   device_properties: z.record(z.string(), z.unknown()).nullable(),
   properties: z.record(z.string(), z.unknown()).nullable(),
+  server_timestamp: z.string().datetime(),
 });
 
 export type EventExchange = z.infer<typeof EventSchema>;

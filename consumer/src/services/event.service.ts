@@ -34,8 +34,9 @@ export const insertEvent = async (
 
         await createEvent(eventContent);
 
-        safeAck(channel, msg)
-        console.log('Event stored ✅');
+        safeAck(channel, msg);
+
+        console.log('Event stored ✅✅');
     } catch (consumeError) {
         console.error('Error processing message:', consumeError);
         safeNack(channel, msg)
