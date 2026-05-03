@@ -8,6 +8,7 @@ export const startWorker = async (): Promise<void> => {
         const queue = process.env.RABBITMQ_QUEUE ?? 'events';
         console.log(`[*] Worker waiting for messages in ${queue}. To exit press CTRL+C`);
 
+        channel.prefetch(100);
         channel.consume(queue, async (msg) => {
             if (msg !== null) {
                 try {

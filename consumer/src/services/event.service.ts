@@ -20,14 +20,14 @@ export const insertEvent = async (
 
         const eventContent = result.data;
 
-        console.log('Received:', eventContent);
+        console.log('Received:', eventContent.event_id);
 
         // only set if Not eXists
-        const isNew = await redis.set(eventContent.event_id, '1', 'EX', 60, 'NX');
+        const isNew = await redis.set(eventContent.event_id, '1', 'EX', 86400, 'NX');
 
         if (isNew === null) {
             // key already existed → duplicate
-            console.log('Duplicate dropped');
+            console.log('Duplicate dropped', eventContent.event_id);
             channel.ack(msg);
             return;
         }
@@ -37,8 +37,12 @@ export const insertEvent = async (
         safeAck(channel, msg);
 
         console.log('Event stored ✅✅');
-    } catch (consumeError) {
+    } catch (consumeError: any) {
         console.error('Error processing message:', consumeError);
-        safeNack(channel, msg)
+        if (consumeError.code === '23505') {
+        console.log('Duplicate caught at DB level, discarding');
+        safeAck(channel, msg); // ack, don't requeue
+        return;
+    }
     }
 }

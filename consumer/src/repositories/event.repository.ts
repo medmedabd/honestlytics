@@ -16,7 +16,8 @@ export const createEvent = async (eventContent: EventExchange): Promise<void> =>
             device_properties,
             properties,
             intent
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         ON CONFLICT (event_id) DO NOTHING`,
         [
             eventContent.event_id,
             eventContent.event_name,
