@@ -4,6 +4,7 @@ import { getDeviceProperties } from './device';
 export class Honestlytics {
   private url: string;
   private write_key: string;
+  private site_id: string;
 
   private queue: EventPayload[] = [];
   private timer?: ReturnType<typeof setInterval>;
@@ -23,9 +24,18 @@ export class Honestlytics {
   onFailed?: (error: Error) => void;
   onSuccess?: (count: number) => void;
 
+  private session_id: string | null = null;
+  private readonly SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 min
+
   constructor(config: HonestlyticsConfig) {
     this.url = config.url.replace(/\/$/, '');
+
+    if (config.write_key == null || config.site_id == null) {
+      throw new Error('write_key and site_id are required');
+    }
+
     this.write_key = config.write_key;
+    this.site_id = config.site_id;
 
     this.flushInterval = config.flushInterval ?? 5000;
     this.maxBatchSize = config.maxBatchSize ?? 20;
@@ -33,6 +43,7 @@ export class Honestlytics {
     this.retry = config.retry ?? 3;
     this.debug = config.debug ?? false;
     this.distinct_id = this.getOrCreateDistinctId();
+    this.session_id = this.getOrCreateSessionId();
     this.onRetry = config.onRetry;
     this.onFailed = config.onFailed;
     this.onSuccess = config.onSuccess;
@@ -44,6 +55,7 @@ export class Honestlytics {
 
     this.start();
     this.setupUnloadHook();
+
   }
 
   // -------------------
@@ -51,8 +63,12 @@ export class Honestlytics {
   // -------------------
 
   track(event: EventPayload): void {
+    this.session_id = this.getOrCreateSessionId();
+
     const payload: EventPayload = {
       ...event,
+      site_id: this.site_id,
+      session_id: this.session_id,
       distinct_id: event.distinct_id ?? this.distinct_id,
       sdk_version: '0.1.0',
       client_timestamp: event.client_timestamp ?? new Date().toISOString(),
@@ -181,10 +197,15 @@ export class Honestlytics {
         { type: 'application/json' }
       );
 
-      navigator.sendBeacon(
+      const success = navigator.sendBeacon(
         `${this.url}/event/batch`,
         payload
       );
+
+      if (success) {
+        this.queue = [];
+      }
+
     };
 
     window.addEventListener('beforeunload', flushWithBeacon);
@@ -195,7 +216,6 @@ export class Honestlytics {
       }
     });
 
-    this.queue = [];
   }
 
   private getOrCreateDistinctId(): string {
@@ -211,5 +231,26 @@ export class Honestlytics {
     return this.queue.length;
   }
 
+  private getOrCreateSessionId(): string {
+    const now = Date.now();
+
+    if (typeof sessionStorage === 'undefined') return crypto.randomUUID();
+
+    const storedSession = sessionStorage.getItem('hnly_session_id');
+    const storedTime = sessionStorage.getItem('hnly_last_activity');
+    const lastActivity = storedTime ? parseInt(storedTime) : 0;
+
+    // session expired or doesn't exist → new session
+    if (!storedSession || (now - lastActivity) > this.SESSION_TIMEOUT_MS) {
+      const id = crypto.randomUUID();
+      sessionStorage.setItem('hnly_session_id', id);
+      sessionStorage.setItem('hnly_last_activity', String(now));
+      return id;
+    }
+
+    // refresh activity timestamp
+    sessionStorage.setItem('hnly_last_activity', String(now));
+    return storedSession;
+  }
 }
 

@@ -3,6 +3,7 @@ import { EventSchema } from "../validators/event.validator";
 import redis from "../config/redis";
 import { safeAck, safeNack } from "../utils/rabbitmq.utils";
 import { createEvent } from '../repositories/event.repository';
+import { incrementAggregationCounters } from '../aggregation/increment' // add this
 
 export const insertEvent = async (
     channel: Channel,
@@ -32,17 +33,35 @@ export const insertEvent = async (
             return;
         }
 
-        await createEvent(eventContent);
+        await createEvent(eventContent)
 
-        safeAck(channel, msg);
+        if (!eventContent.distinct_id || !eventContent.client_timestamp) {
+            console.warn('[aggregation] missing distinct_id or client_timestamp, skipping counters')
+            safeAck(channel, msg)
+            return
+        }
+
+        try {
+            await incrementAggregationCounters({
+                site_id: eventContent.site_id,
+                event_name: eventContent.event_name,
+                distinct_id: eventContent.distinct_id,
+                session_id: eventContent.session_id ?? null,
+                client_timestamp: eventContent.client_timestamp,
+            })
+        } catch (aggErr) {
+            console.error('[aggregation] increment failed, will reconcile:', aggErr)
+        }
+
+        safeAck(channel, msg)
 
         console.log('Event stored ✅✅');
     } catch (consumeError: any) {
         console.error('Error processing message:', consumeError);
         if (consumeError.code === '23505') {
-        console.log('Duplicate caught at DB level, discarding');
-        safeAck(channel, msg); // ack, don't requeue
-        return;
-    }
+            console.log('Duplicate caught at DB level, discarding');
+            safeAck(channel, msg); // ack, don't requeue
+            return;
+        }
     }
 }

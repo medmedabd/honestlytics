@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import cluster from 'cluster';
 import os from 'os';
 import eventRoutes from './routes/event.route';
+import analyticsRoutes from './routes/analytics.route';
 import createRabbitMQChannel from './config/rabbitmq';
 import { setChannel } from './config/channel';
 import cors from 'cors';
@@ -21,6 +22,7 @@ const startWorker = async () => {
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
     app.use('/event', eventRoutes);
+    app.use('/analytics', analyticsRoutes);
 
     const channel = await createRabbitMQChannel();
     setChannel(channel);

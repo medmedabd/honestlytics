@@ -37,6 +37,8 @@ services:
     ports:
       - "6379:6379"
     command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
@@ -45,9 +47,9 @@ services:
 
   api:
     build: ./api
-    deploy:
-      replicas: 3
-    # NO ports here — nginx handles external access
+    container_name: honestlytics-api
+    # deploy:
+    #   replicas: 3
     environment:
       - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
       - REDIS_URL=redis://redis:6379
@@ -63,8 +65,9 @@ services:
 
   consumer:
     build: ./consumer
-    deploy:
-      replicas: 3
+    container_name: honestlytics-consumer
+    # deploy:
+    #   replicas: 3
     environment:
       - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
       - REDIS_URL=redis://redis:6379
@@ -94,6 +97,7 @@ services:
     volumes:
       - ./packages/sdk/test:/usr/share/nginx/html
       - ./packages/sdk/dist:/usr/share/nginx/html/dist
+
   nginx:
     image: nginx:alpine
     container_name: honestlytics-nginx
@@ -106,3 +110,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

@@ -19,6 +19,7 @@ export const EventSchema = z.object({
     //server_timestamp: z.string().datetime(),
     device_properties: z.record(z.string(), z.unknown()).nullable().optional(),
     properties: z.record(z.string(), z.unknown()).nullable().optional(),
+    site_id: z.string().uuid(),
 });
 
 const addEvent = async (req: Request, res: Response): Promise<void> => {

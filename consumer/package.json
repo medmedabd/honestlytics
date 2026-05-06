@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon --watch src --ext ts --legacy-watch --exec ts-node src/index.ts"
+    "dev": "nodemon --watch src --ext ts --legacy-watch --exec ts-node src/index.ts",
+    "reconcile": "ts-node src/scripts/reconcile.ts"
   },
   "keywords": [],
   "author": "",
@@ -12,8 +13,11 @@
   "description": "",
   "dependencies": {
     "amqplib": "^1.0.3",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "dotenv": "^17.4.2",
     "ioredis": "^5.10.1",
+    "node-cron": "^4.2.1",
     "pg": "^8.20.0",
     "zod": "^4.4.1"
   },

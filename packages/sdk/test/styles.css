@@ -129,3 +129,22 @@ h1 {
 .clear-btn:hover {
   color: #111;
 }
+
+.section-label {
+  font-size: 11px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+  margin-top: 1.5rem;
+}
+
+.btn.accent {
+  background: #1a7a4a;
+  color: #fff;
+  border-color: #1a7a4a;
+}
+
+.btn.accent:hover {
+  opacity: 0.85;
+}
