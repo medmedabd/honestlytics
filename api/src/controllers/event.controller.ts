@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { getChannel } from '../config/channel';
+import { getChannel, publishEvents } from '../config/channel';
 import { EventExchange } from '../types/event.types';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
@@ -40,11 +40,11 @@ const addEvent = async (req: Request, res: Response): Promise<void> => {
             server_timestamp: new Date().toISOString()
         };
 
-        // TODO: handle backpressure (next release)
         try {
-            channel.sendToQueue('events', Buffer.from(JSON.stringify(enriched)));
-        } catch {
-            res.status(503).send({ error: 'Backpressure handling not implemented yet' });
+            await publishEvents([enriched]);
+        } catch (err) {
+            console.error('Publish failed:', err);
+            res.status(503).set('Retry-After', '5').send({ error: 'Queue unavailable, retry later' });
             return;
         }
 
@@ -87,15 +87,14 @@ const batchEvents = async (req: Request, res: Response): Promise<void> => {
             });
         }
 
-        // Step 2: publish all at once — no CPU work interleaved with I/O
-        // NOTE: all-or-nothing at validation level, partial publish still possible
-        // if sendToQueue throws mid-loop. Redis dedup handles client retries.
+        // Step 2: publish persistently and wait for broker confirms. A failure
+        // mid-batch can leave a partial publish; the SDK retries the whole batch
+        // and event_id dedup in the consumer absorbs the repeats.
         try {
-            for (const event of enriched) {
-                channel.sendToQueue('events', Buffer.from(JSON.stringify(event)));
-            }
-        } catch {
-            res.status(503).send({ error: 'Backpressure handling not implemented yet' });
+            await publishEvents(enriched);
+        } catch (err) {
+            console.error('Batch publish failed:', err);
+            res.status(503).set('Retry-After', '5').send({ error: 'Queue unavailable, retry later' });
             return;
         }
 

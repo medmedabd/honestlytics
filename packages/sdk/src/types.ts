@@ -1,4 +1,5 @@
 export interface EventPayload {
+  event_id?: string;
   event_name: string;
   distinct_id?: string;
   user_id?: string;

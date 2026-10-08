@@ -1,12 +1,13 @@
 import type { Request, Response } from 'express'
 import pool from '../config/postgres'
-import { subDays, format, parseISO, isValid } from 'date-fns'
+import { parseISO, isValid } from 'date-fns'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getDateRange(query: Request['query']): { from: string; to: string } | null {
-    const to = query.to ? String(query.to) : format(new Date(), 'yyyy-MM-dd')
-    const from = query.from ? String(query.from) : format(subDays(new Date(), 7), 'yyyy-MM-dd')
+    const utcDay = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10)
+    const to = query.to ? String(query.to) : utcDay(0)
+    const from = query.from ? String(query.from) : utcDay(7)
 
     if (!isValid(parseISO(from)) || !isValid(parseISO(to))) return null
     return { from, to }

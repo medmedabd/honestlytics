@@ -4,6 +4,46 @@ import redis from '../config/redis'
 import { drainHLL } from '../aggregation/drainHLL'
 import { drainSessionDuration } from '../aggregation/drainDuration'
 
+// ─── Pageviews reconciliation ─────────────────────────────────────────────────
+
+async function reconcilePageviews(date: string): Promise<void> {
+  console.log(`[pageviews] reconciling ${date}...`)
+
+  const { rows: before } = await pool.query(`
+    SELECT SUM(count) AS total FROM agg_pageviews_hourly
+    WHERE site_id IN (SELECT DISTINCT site_id FROM events WHERE client_timestamp::date = $1::date)
+      AND bucket_hour >= $1::timestamptz
+      AND bucket_hour < ($1::timestamptz + INTERVAL '1 day')
+  `, [date])
+
+  await pool.query(`
+    INSERT INTO agg_pageviews_hourly (site_id, bucket_hour, count)
+    SELECT
+      site_id,
+      DATE_TRUNC('hour', client_timestamp) AS bucket_hour,
+      COUNT(*) AS count
+    FROM events
+    WHERE
+      client_timestamp >= $1::timestamptz
+      AND client_timestamp < ($1::timestamptz + INTERVAL '1 day')
+      AND event_name = 'page_view'
+    GROUP BY site_id, DATE_TRUNC('hour', client_timestamp)
+    ON CONFLICT (site_id, bucket_hour)
+    DO UPDATE SET count = EXCLUDED.count
+  `, [date])
+
+  const { rows: after } = await pool.query(`
+    SELECT SUM(count) AS total FROM agg_pageviews_hourly
+    WHERE bucket_hour >= $1::timestamptz
+      AND bucket_hour < ($1::timestamptz + INTERVAL '1 day')
+  `, [date])
+
+  console.log(`[pageviews] site totals`)
+  console.log(`  before: ${before[0]?.total ?? 0}`)
+  console.log(`  after:  ${after[0]?.total ?? 0}`)
+  console.log(`[pageviews] done ✅`)
+}
+
 // ─── CLI arg parser ───────────────────────────────────────────────────────────
 
 function getArg(name: string): string | null {
@@ -80,7 +120,6 @@ async function reconcileSessionDuration(date: string): Promise<void> {
   AND client_timestamp < ($1::timestamptz + INTERVAL '1 day')
 `, [date]);
 
-  console.log("DEBUG events in range:", test.rows[0]);
   const { rows: before } = await pool.query(`
     SELECT site_id, duration_sum, session_count
     FROM agg_session_duration_daily
@@ -173,6 +212,11 @@ async function main() {
 
   try {
     for (const d of dates) {
+      if (metric === 'pageviews' || metric === 'all') {
+        await reconcilePageviews(d)
+        console.log()
+      }
+
       if (metric === 'unique-users' || metric === 'all') {
         await reconcileUniqueUsers(d)
         console.log()
