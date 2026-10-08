@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
   max: 20,
+  options: '-c timezone=UTC',
   idleTimeoutMillis: 30000,
 });
 

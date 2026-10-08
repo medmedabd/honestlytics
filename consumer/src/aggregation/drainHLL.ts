@@ -1,10 +1,10 @@
 import { Redis } from 'ioredis'
 import { Pool } from 'pg'
-import { format, subDays } from 'date-fns'
+import { utcDay } from '../utils/date'
 
 export async function drainHLL(redis: Redis, db: Pool): Promise<void> {
     // drain yesterday's HLL keys
-    const yesterday = format(subDays(new Date(), 1), 'yyyyMMdd')
+    const yesterday = utcDay(1).replace(/-/g, '')
     const pattern = `hnly:*:uu:${yesterday}`
 
     const keys = await redis.keys(pattern)

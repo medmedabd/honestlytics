@@ -51,6 +51,8 @@ Send a test event:
 
 ```bash
 curl -X POST http://localhost:3000/event   -H "Content-Type: application/json"   -d '{
+    "event_id": "'"$(uuidgen)"'",
+    "site_id": "09c0fbf1-9b11-4820-9152-95fc9f122c37",
     "event_name": "button_clicked",
     "distinct_id": "abc-123",
     "session_id": null,

@@ -67,6 +67,7 @@ export class Honestlytics {
 
     const payload: EventPayload = {
       ...event,
+      event_id: event.event_id ?? crypto.randomUUID(),
       site_id: this.site_id,
       session_id: this.session_id,
       distinct_id: event.distinct_id ?? this.distinct_id,

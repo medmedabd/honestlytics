@@ -5,11 +5,11 @@ const queue = process.env.RABBITMQ_QUEUE ?? 'events';
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const createRabbitMQChannel = async (retries = 5, delay = 3000): Promise<amqp.Channel> => {
+const createRabbitMQChannel = async (retries = 5, delay = 3000): Promise<amqp.ConfirmChannel> => {
   for (let i = 0; i < retries; i++) {
     try {
       const connection = await amqp.connect(url);
-      const channel = await connection.createChannel();
+      const channel = await connection.createConfirmChannel(); // publisher confirms
       await channel.assertQueue(queue, { durable: true });
       console.log('RabbitMQ connected, queue ready');
       return channel;

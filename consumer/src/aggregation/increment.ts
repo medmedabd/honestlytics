@@ -18,7 +18,9 @@ export async function incrementAggregationCounters(event: {
     const p = redis.pipeline()
 
     // pageviews
-    p.incr(`hnly:${siteId}:pageviews:_:${hour}`)
+    if (event.event_name === 'page_view') {
+        p.incr(`hnly:${siteId}:pageviews:_:${hour}`)
+    }
 
     // event count by name
     p.incr(`hnly:${siteId}:event:${event.event_name}:${hour}`)
@@ -26,9 +28,12 @@ export async function incrementAggregationCounters(event: {
     // unique users via HLL
     p.pfadd(`hnly:${siteId}:uu:${day}`, event.distinct_id)
 
+    let saddIndex = -1
+
     // session — only count if session_id is new for this site+day
     if (event.session_id) {
         const seenKey = `hnly:${siteId}:seen_sessions:${day}`
+        saddIndex = p.length
         p.sadd(seenKey, event.session_id)
         p.expire(seenKey, 48 * 60 * 60)
     }
@@ -36,8 +41,8 @@ export async function incrementAggregationCounters(event: {
     const results = await p.exec()
 
     // check if session was new (SADD returns 1 if member was added, 0 if already existed)
-    if (event.session_id && results) {
-        const saddResult = results[3] // index 3 = sadd result
+    if (saddIndex >= 0 && results) {
+        const saddResult = results[saddIndex]
         const isNewSession = saddResult?.[1] === 1
 
         if (isNewSession) {

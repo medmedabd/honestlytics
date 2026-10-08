@@ -3,14 +3,60 @@ import { EventSchema } from "../validators/event.validator";
 import redis from "../config/redis";
 import { safeAck, safeNack } from "../utils/rabbitmq.utils";
 import { createEvent } from '../repositories/event.repository';
-import { incrementAggregationCounters } from '../aggregation/increment' // add this
+import { incrementAggregationCounters } from '../aggregation/increment'
+
+const MAX_ATTEMPTS = 5;
+const DEAD_QUEUE = process.env.RABBITMQ_DEAD_QUEUE ?? 'events.dead';
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Failure path: free the dedup key so the redelivery isn't mistaken for a
+// duplicate, then requeue. After MAX_ATTEMPTS the message goes to a dead
+// queue (kept for inspection/replay) instead of looping forever.
+const handleFailure = async (
+    channel: Channel,
+    msg: Message,
+    eventId: string | null,
+    dedupKeySet: boolean,
+): Promise<void> => {
+    try {
+        if (eventId && dedupKeySet) await redis.del(eventId);
+
+        const attempts = eventId ? await redis.incr(`hnly:retry:${eventId}`) : MAX_ATTEMPTS;
+        if (eventId && attempts === 1) await redis.expire(`hnly:retry:${eventId}`, 3600);
+
+        if (attempts >= MAX_ATTEMPTS) {
+            console.error(`Event ${eventId ?? '(unparsed)'} failed ${attempts} times, moving to ${DEAD_QUEUE}`);
+            await channel.assertQueue(DEAD_QUEUE, { durable: true });
+            channel.sendToQueue(DEAD_QUEUE, msg.content, { persistent: true });
+            safeAck(channel, msg);
+            return;
+        }
+
+        await wait(Math.min(attempts * 1000, 5000)); // back off so a DB outage isn't hot-looped
+    } catch (err) {
+        // Redis/broker trouble while handling a failure: still requeue so nothing is lost.
+        console.error('Failure handler error:', err);
+    }
+    safeNack(channel, msg);
+};
 
 export const insertEvent = async (
     channel: Channel,
     msg: Message,
 ): Promise<void> => {
+    let eventId: string | null = null;
+    let dedupKeySet = false;
+
     try {
-        const parsed = JSON.parse(msg.content.toString());
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(msg.content.toString());
+        } catch {
+            console.error('Unparseable message, dropping');
+            safeAck(channel, msg);
+            return;
+        }
+
         const result = EventSchema.safeParse(parsed);
 
         if (!result.success) {
@@ -20,8 +66,7 @@ export const insertEvent = async (
         }
 
         const eventContent = result.data;
-
-        console.log('Received:', eventContent.event_id);
+        eventId = eventContent.event_id;
 
         // only set if Not eXists
         const isNew = await redis.set(eventContent.event_id, '1', 'EX', 86400, 'NX');
@@ -29,17 +74,12 @@ export const insertEvent = async (
         if (isNew === null) {
             // key already existed → duplicate
             console.log('Duplicate dropped', eventContent.event_id);
-            channel.ack(msg);
+            safeAck(channel, msg);
             return;
         }
+        dedupKeySet = true;
 
         await createEvent(eventContent)
-
-        if (!eventContent.distinct_id || !eventContent.client_timestamp) {
-            console.warn('[aggregation] missing distinct_id or client_timestamp, skipping counters')
-            safeAck(channel, msg)
-            return
-        }
 
         try {
             await incrementAggregationCounters({
@@ -54,14 +94,13 @@ export const insertEvent = async (
         }
 
         safeAck(channel, msg)
-
-        console.log('Event stored ✅✅');
     } catch (consumeError: any) {
-        console.error('Error processing message:', consumeError);
         if (consumeError.code === '23505') {
             console.log('Duplicate caught at DB level, discarding');
             safeAck(channel, msg); // ack, don't requeue
             return;
         }
+        console.error('Error processing message:', consumeError);
+        await handleFailure(channel, msg, eventId, dedupKeySet);
     }
 }
